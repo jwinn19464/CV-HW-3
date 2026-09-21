@@ -1,20 +1,21 @@
 """
-blur_fourier.py -- Image blurring via the frequency-domain equivalent
-======================================================================
-CSc 8830 Computer Vision, Module 3
+Image blurring via the frequency-domain equivalent
 
-Theory being demonstrated (convolution theorem):
+A convolution in the spatial domain with kernel h is equivalent to 
+multiplication between the image's Fourier transform F and the kernel's Fourier transform H
+followed by an inverse Fourier transform (just like how flipping the kernel yields a convolution vs a correlation)
+
     f(x,y) * h(x,y)   <-->   F(u,v) . H(u,v)
-i.e. spatial convolution with kernel h equals element-wise multiplication
-of the image's Fourier transform F with the kernel's Fourier transform H,
-followed by an inverse Fourier transform.
 
-Steps implemented here (per channel):
+
+Steps implemented per channel:
   1. Zero-pad the kernel to the image size and place its center at (0,0)
-     (via np.fft.ifftshift) so the FFT phase lines up with spatial convolution.
-  2. F = fft2(image), H = fft2(padded kernel)
-  3. G = F * H            (element-wise complex multiplication)
-  4. g = real(ifft2(G))   -> the blurred image
+     (via np.fft.ifftshift) so the Fast Fourier Transform (FFT) phase lines up with its spatial convolution.
+     
+  2. Do Fast Fourier Transforms on the image and the kernel, F = fft2(image), H = fft2(padded kernel)
+  3. G = F * H            do element wise multiplication between the FFT of the img and the FFT of the kernel
+  4. g = real(ifft2(G))   -> yields the blurred image by doing an Inverse FFT onto the FFT to convert it 
+                             back to the spatial domain from the frequency domain
 
 HOW TO RUN
 ----------
@@ -32,17 +33,17 @@ from blur_spatial import box_kernel, gaussian_kernel
 
 
 def pad_kernel_to_image(kernel, shape):
-    """Place kernel (odd size, centered) into a zero image of `shape` with its
-    center element wrapped to index (0,0) -- required for the FFT-multiply
-    result to align with spatial 'same'-size convolution.
+    """Place an odd-sized, centered kernel into a zero image of with the specified dimensions of `shape` 
+    with its center element wrapped to index (0,0) -- required for the FFT-multiplication
+    result to align with the spatial convolution.
 
-    Uses direct modular index placement rather than np.fft.ifftshift, because
-    ifftshift's centering convention for EVEN-length axes (center = N//2)
-    does not match "true center" placement for an odd-sized kernel, which
+    Uses direct modular index placement rather than the np.fft.ifftshift function, because
+    ifftshift's centering convention for even-length axes, where center = N//2,
+    does not match true center placement for an odd-sized kernel, which
     silently shifts the result by one pixel on even-sized images."""
     H, W = shape
     kh, kw = kernel.shape
-    cy, cx = kh // 2, kw // 2  # kernel's own center index (kernel must be odd-sized)
+    cy, cx = kh // 2, kw // 2  # index of the center of the kernel --> kernel must have an odd size for this to be possible
     padded = np.zeros((H, W), dtype=np.float64)
     ii, jj = np.meshgrid(np.arange(kh), np.arange(kw), indexing="ij")
     dst_y = (ii - cy) % H
@@ -51,28 +52,28 @@ def pad_kernel_to_image(kernel, shape):
     return padded
 
 
-def blur_channel_fourier(chan, kernel):
-    H, W = chan.shape
-    F = np.fft.fft2(chan)
+def blur_channel_fourier(channel, kernel):
+    H, W = channel.shape
+    F = np.fft.fft2(channel) # do FFT on the channel
     padded_kernel = pad_kernel_to_image(kernel, (H, W))
-    Hf = np.fft.fft2(padded_kernel)
-    G = F * Hf
-    g = np.fft.ifft2(G)
+    Hf = np.fft.fft2(padded_kernel) # do FFT on the kernel
+    G = F * Hf # do multiplication in the Fourier domain
+    g = np.fft.ifft2(G) # return to the spatial domain via inverse FFT
     return np.real(g), F, Hf, G
 
 
 def blur_image_fourier(img_bgr, kernel):
-    chans = cv2.split(img_bgr.astype(np.float64))
-    out_chans, spectra = [], []
-    for c in chans:
+    channels = cv2.split(img_bgr.astype(np.float64))
+    out_channels, spectra = [], []
+    for c in channels:
         g, F, Hf, G = blur_channel_fourier(c, kernel)
-        out_chans.append(g)
+        out_channels.append(g)
         spectra.append((F, Hf, G))
-    return cv2.merge(out_chans), spectra
+    return cv2.merge(out_channels), spectra
 
 
 def save_spectrum_plot(spectra, path):
-    F, Hf, G = spectra[0]  # first (e.g. blue) channel for illustration
+    F, Hf, G = spectra[0]  # first channel
     fig, ax = plt.subplots(1, 3, figsize=(12, 4))
     for a, mat, title in zip(
             ax, [F, Hf, G], ["|F(u,v)| image FFT", "|H(u,v)| kernel FFT", "|G(u,v)| product"]):
