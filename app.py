@@ -1,9 +1,5 @@
 """
-app.py -- Web application for Module 3 (separate from Module 2's app)
-=======================================================================
 RUN:      streamlit run app.py
-DEPLOY:   push THIS folder (cv-module3) as its own GitHub repo ->
-          share.streamlit.io -> New app -> select this repo's app.py
 """
 import os, io, json
 import cv2
@@ -14,7 +10,7 @@ from blur_spatial import box_kernel, gaussian_kernel, blur_image
 from blur_fourier import blur_image_fourier, save_spectrum_plot
 from validate import compare, save_report
 
-st.set_page_config(page_title="CSc 8830 - Module 3", layout="wide")
+st.set_page_config(page_title="CSC 8830 - Module 3 Assignment", layout="wide")
 st.title("Image Blurring: Spatial Filtering vs. Fourier Domain")
 
 tab_blur, tab_val= st.tabs(["1 - Blur", "2 - Validate equivalence"])
